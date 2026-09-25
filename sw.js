@@ -1,157 +1,101 @@
-// Service Worker for Metube App
-const CACHE_NAME = 'metube-v1';
-const OFFLINE_CACHE = 'metube-offline-v1';
+// sw.js — Service Worker: ऐप को तेज़ और ऑफ़लाइन चलने लायक बनाता है
+//
+// पुरानी गड़बड़ियाँ (जो अब ठीक हैं):
+//  1. यह फ़ाइल कहीं register ही नहीं थी (अब js/pwa.js में register होती है)
+//  2. जिन फ़ाइलों को cache करना था (/assets/..., /icons/...) वो मौजूद ही नहीं थीं → install फ़ेल
+//  3. "/" से शुरू होने वाले पाथ GitHub Pages के /Chitrapat-New/ फ़ोल्डर में ग़लत जगह जाते थे
+//  4. हर चीज़ (वीडियो, Firebase डेटा) cache हो रही थी — अब सिर्फ़ ऐप की अपनी फ़ाइलें
+const VERSION = 'v2.0.0';
+const SHELL_CACHE = `chitrapat-shell-${VERSION}`;
+const RUNTIME_CACHE = `chitrapat-runtime-${VERSION}`;
 
-// कैश करने के लिए रिसोर्सेज
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon-72x72.png',
-  '/icons/icon-192x192.png',
-  '/assets/default-thumbnail.jpg',
-  '/assets/default-avatar.jpg',
-  '/assets/logo.png'
+// सभी पाथ "relative" हैं — यानी साइट किसी भी फ़ोल्डर/डोमेन पर हो, चलेगी
+const SHELL = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './config.js',
+  './manifest.json',
+  './js/utils.js',
+  './js/store.js',
+  './js/backend.js',
+  './js/ui.js',
+  './js/pages.js',
+  './js/pwa.js',
+  './js/demo-data.js',
+  './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/favicon-32.png',
+  './assets/fonts/mukta-devanagari-400-normal.woff2',
+  './assets/fonts/mukta-devanagari-600-normal.woff2',
+  './assets/fonts/mukta-devanagari-700-normal.woff2',
+  './assets/fonts/mukta-latin-400-normal.woff2',
+  './assets/fonts/mukta-latin-600-normal.woff2',
+  './assets/fonts/mukta-latin-700-normal.woff2',
 ];
 
-// इंस्टॉल इवेंट
-self.addEventListener('install', event => {
-  console.log('Service Worker: Installing...');
-  
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Service Worker: Caching app shell');
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => {
-        console.log('Service Worker: Install completed');
-        return self.skipWaiting();
-      })
+    caches.open(SHELL_CACHE)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting()),
   );
 });
 
-// एक्टिवेट इवेंट
-self.addEventListener('activate', event => {
-  console.log('Service Worker: Activating...');
-  
-  // पुराने कैशेज क्लीन करें
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME && cacheName !== OFFLINE_CACHE) {
-            console.log('Service Worker: Clearing old cache', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-    .then(() => {
-      console.log('Service Worker: Activation completed');
-      return self.clients.claim();
-    })
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((k) => k.startsWith('chitrapat-') && k !== SHELL_CACHE && k !== RUNTIME_CACHE)
+          .map((k) => caches.delete(k)),
+      ))
+      .then(() => self.clients.claim()),
   );
 });
 
-// फेच इवेंट
-self.addEventListener('fetch', event => {
-  const request = event.request;
-  
-  // नेटवर्क फर्स्ट स्ट्रेटेजी
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        // सक्सेसफुल रिस्पॉन्स को कैश करें
-        if (request.method === 'GET') {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(request, responseClone);
-            });
-        }
-        return response;
-      })
-      .catch(() => {
-        // ऑफलाइन होने पर कैश से सर्व करें
-        console.log('Service Worker: Offline mode, serving from cache');
-        
-        // विडियो रिक्वेस्ट के लिए अलग हैंडलिंग
-        if (request.url.includes('.mp4') || request.url.includes('video')) {
-          return caches.match('/assets/demo-video1.mp4')
-            .then(videoResponse => {
-              return videoResponse || new Response('Offline - Video not available', {
-                status: 404,
-                headers: { 'Content-Type': 'text/plain' }
-              });
-            });
-        }
-        
-        // नॉर्मल रिक्वेस्ट्स
-        return caches.match(request)
-          .then(response => {
-            return response || caches.match('/index.html');
-          });
-      })
-  );
-});
-
-// सिंक इवेंट (बैकग्राउंड सिंक)
-self.addEventListener('sync', event => {
-  console.log('Service Worker: Background sync', event.tag);
-  
-  if (event.tag === 'sync-videos') {
-    event.waitUntil(syncOfflineVideos());
+// पहले नेटवर्क (ताकि हमेशा नया वर्ज़न मिले), नेट न हो तो cache
+async function networkFirst(request, fallbackUrl) {
+  const cache = await caches.open(SHELL_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === 'basic') cache.put(request, response.clone());
+    return response;
+  } catch (err) {
+    const cached = await cache.match(request, { ignoreSearch: request.mode === 'navigate' });
+    if (cached) return cached;
+    if (fallbackUrl) {
+      const fallback = await cache.match(fallbackUrl);
+      if (fallback) return fallback;
+    }
+    throw err;
   }
-});
-
-// ऑफलाइन वीडियो सिंक (डेमो)
-function syncOfflineVideos() {
-  console.log('Service Worker: Syncing offline videos');
-  // फेज 2 में इम्प्लीमेंट करेंगे
-  return Promise.resolve();
 }
 
-// पुश नोटिफिकेशन
-self.addEventListener('push', event => {
-  console.log('Service Worker: Push notification received');
-  
-  const options = {
-    body: 'Metube: नए वीडियो अपलोड हुए हैं!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
-    vibrate: [200, 100, 200],
-    data: {
-      url: 'https://metube.com'
-    },
-    actions: [
-      {
-        action: 'watch',
-        title: 'देखें'
-      },
-      {
-        action: 'close',
-        title: 'बंद करें'
-      }
-    ]
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification('Metube चाइना', options)
-  );
-});
+// पहले cache (Firebase SDK जैसी फ़ाइलें जो वर्ज़न के साथ कभी नहीं बदलतीं)
+async function cacheFirst(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) cache.put(request, response.clone());
+  return response;
+}
 
-// नोटिफिकेशन क्लिक
-self.addEventListener('notificationclick', event => {
-  console.log('Service Worker: Notification clicked');
-  
-  event.notification.close();
-  
-  if (event.action === 'watch') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  // वीडियो (Range requests) कभी cache न करें — ये बहुत बड़े होते हैं
+  if (request.headers.has('range') || request.destination === 'video' || request.destination === 'audio') return;
+
+  const url = new URL(request.url);
+  if (url.origin === self.location.origin) {
+    if (/\.(mp4|webm|mov|m3u8)$/i.test(url.pathname)) return;
+    event.respondWith(networkFirst(request, request.mode === 'navigate' ? './index.html' : null));
+    return;
   }
+  if (url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/')) {
+    event.respondWith(cacheFirst(request));
+  }
+  // बाकी सब (Firestore, Cloudinary, Analytics) — ब्राउज़र ख़ुद संभाले
 });

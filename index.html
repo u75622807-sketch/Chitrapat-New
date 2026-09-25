@@ -1,323 +1,168 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="hi" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chitrapat-वीडियो प्लेटफॉर्म</title>
-    
-    <meta name="theme-color" content="#ff0000">
-    <meta name="description" content="Metube - भारत का अपना वीडियो प्लेटफ़ॉर्म">
-    <link rel="manifest" href="manifest.json">
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap">
-    <link rel="stylesheet" href="style.css">
-    
-    <style>
-        .loading-videos {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 40px;
-            color: #888;
-        }
-        
-        .no-videos {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            color: #888;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>चित्रपट — भारत का अपना वीडियो ऐप</title>
+  <meta name="description" content="चित्रपट (Chitrapat) — वीडियो देखें, अपलोड करें और शेयर करें। मोबाइल, टैबलेट और कंप्यूटर पर चलने वाला हल्का-फुल्का वीडियो ऐप।">
+  <meta name="theme-color" content="#0b0b10">
+  <meta name="color-scheme" content="dark light">
+  <meta name="author" content="Utkarsh Maurya">
+
+  <!-- PWA / ऐप आइकन -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="चित्रपट">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- WhatsApp / Facebook / X पर लिंक शेयर करने पर सुंदर प्रीव्यू -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="चित्रपट">
+  <meta property="og:title" content="चित्रपट — भारत का अपना वीडियो ऐप">
+  <meta property="og:description" content="वीडियो देखें, अपलोड करें और शेयर करें — मोबाइल पर ऐप की तरह इंस्टॉल करें।">
+  <meta property="og:url" content="https://u75622807-sketch.github.io/Chitrapat-New/">
+  <meta property="og:image" content="https://u75622807-sketch.github.io/Chitrapat-New/icons/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="hi_IN">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preload" href="assets/fonts/mukta-devanagari-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- थीम पेज बनने से पहले लगाएँ, ताकि सफ़ेद/काली "फ़्लैश" न दिखे -->
+  <script>
+    try {
+      var t = localStorage.getItem('cp_theme');
+      if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
+  <script type="module" src="app.js"></script>
 </head>
 <body>
+  <!-- आइकन: Feather Icons (MIT License) © Cole Bemis — https://feathericons.com -->
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+    <symbol id="i-upload-cloud" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+    <symbol id="i-trending" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/><polyline points="12 7 12 12 15 14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-thumbs-up" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></symbol>
+    <symbol id="i-smartphone" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  </svg>
 
-    <div id="loadingScreen" class="loading-screen">
-        <div class="loader"></div>
-        <h2>Chitrapat शुरू हो रहा है...</h2>
+  <a class="skip-link" href="#view">सीधे कंटेंट पर जाएँ</a>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="menuBtn" type="button" aria-label="मेन्यू" aria-controls="sidebar" aria-expanded="false">
+        <svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>
+      </button>
+      <a class="brand" href="#/" aria-label="चित्रपट — होम">
+        <img src="icons/icon.svg" alt="" width="34" height="34">
+        <span class="brand-text">चित्रपट</span>
+      </a>
     </div>
 
-    <div id="appContainer" class="app-container" style="display: none;">
-        
-        <header class="header">
-            <div class="header-left">
-                <button class="menu-btn" onclick="toggleSidebar()">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <div class="logo" onclick="showPage('homePage')">
-                    <div class="logo-icon">c</div>
-                    <span class="logo-text">Chitrapat</span>
-                </div>
-            </div>
-            
-            <div class="header-center">
-                <div class="search-container">
-                    <input type="text" class="search-input" id="searchInput" placeholder="सर्च करें...">
-                    <button class="search-btn" onclick="searchVideos()">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </div>
+    <form class="search" id="searchForm" role="search" autocomplete="off">
+      <button class="icon-btn search-back" id="searchBack" type="button" aria-label="खोज बंद करें">
+        <svg class="icon" aria-hidden="true"><use href="#i-arrow-left"/></svg>
+      </button>
+      <input id="searchInput" type="search" placeholder="वीडियो, चैनल या श्रेणी खोजें…" enterkeyhint="search" aria-label="वीडियो खोजें">
+      <button class="search-submit" type="submit" aria-label="खोजें">
+        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+      </button>
+    </form>
 
-            <div class="header-right">
-                <button class="upload-btn" onclick="showPage('uploadPage')">
-                    <i class="fas fa-video"></i>
-                    <span>अपलोड</span>
-                </button>
-                
-                <div id="userSection" class="user-section">
-                    <button id="loginBtn" class="login-btn">
-                        <i class="fas fa-user-circle"></i>
-                        <span>लॉगिन</span>
-                    </button>
-                    <div id="loggedUser" class="logged-user" style="display: none;">
-                        <img id="userAvatar" class="user-avatar" src="https://placehold.co/36x36/888/fff?text=U" alt="उपयोगकर्ता">
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <nav id="sidebar" class="sidebar">
-            <div class="sidebar-nav">
-                <a href="#" class="nav-item active" onclick="showPage('homePage'); return false;">
-                    <i class="fas fa-home"></i>
-                    <span>होम</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('trendingPage'); return false;">
-                    <i class="fas fa-fire"></i>
-                    <span>ट्रेंडिंग</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('subscriptionsPage'); return false;">
-                    <i class="fas fa-bell"></i>
-                    <span>सब्सक्रिप्शन</span>
-                </a>
-                <hr class="divider">
-                <span class="category-title">लाइब्रेरी</span>
-                <a href="#" class="nav-item" onclick="showPage('historyPage'); return false;">
-                    <i class="fas fa-history"></i>
-                    <span>इतिहास</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showPage('watchLaterPage'); return false;">
-                    <i class="fas fa-clock"></i>
-                    <span>बाद में देखें</span>
-                </a>
-            </div>
-            <footer class="sidebar-footer">
-                © 2025 Chitrapat (भारत)Utkarsh Maurya 
-            </footer>
-        </nav>
-
-        <main class="main-content">
-            
-            <section id="homePage" class="page active">
-                <div class="page-header">
-                    <h2 class="page-title"><i class="fas fa-home"></i> आपके लिए</h2>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active">सभी</button>
-                        <button class="filter-btn">गेमिंग</button>
-                        <button class="filter-btn">संगीत</button>
-                        <button class="filter-btn">समाचार</button>
-                    </div>
-                </div>
-                <div id="videosGrid" class="videos-grid">
-                    <div class="loading-videos">वीडियो लोड हो रहे हैं...</div>
-                </div>
-            </section>
-
-            <section id="uploadPage" class="page">
-                <div class="upload-container">
-                    <h2 class="upload-title"><i class="fas fa-upload"></i> अपना वीडियो अपलोड करें</h2>
-                    
-                    <div id="uploadArea" class="upload-area">
-                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                        <p>वीडियो फ़ाइल को यहाँ ड्रैग और ड्रॉप करें</p>
-                        <p>या</p>
-                        <input type="file" id="fileInput" accept="video/*" style="display: none;">
-                        <button class="select-file-btn" id="selectFileBtn">फ़ाइल चुनें</button>
-                        <p id="fileNameDisplay" class="upload-info">कोई फ़ाइल नहीं चुनी गई। (अधिकतम 100MB)</p>
-                    </div>
-
-                    <div id="uploadDetails" style="display: none;">
-                        <form id="uploadForm">
-                            <div id="uploadProgress" class="upload-progress">
-                                <p class="progress-text" id="progressText">प्रगति: 0%</p>
-                                <div class="progress-bar">
-                                    <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
-                                </div>
-                                <p class="upload-speed" id="uploadSpeed">0 KB/s</p>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="title">शीर्षक (Title)*</label>
-                                <input type="text" id="title" required placeholder="वीडियो का आकर्षक शीर्षक डालें">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="description">विवरण (Description)*</label>
-                                <textarea id="description" rows="5" required placeholder="वीडियो के बारे में विस्तार से बताएं"></textarea>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="category">श्रेणी (Category)*</label>
-                                <select id="category" required>
-                                    <option value="">श्रेणी चुनें</option>
-                                    <option value="gaming">गेमिंग</option>
-                                    <option value="music">संगीत</option>
-                                    <option value="news">समाचार</option>
-                                    <option value="tech">टेक्नोलॉजी</option>
-                                    <option value="other">अन्य</option>
-                                </select>
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="button" class="cancel-btn" onclick="showPage('homePage')">रद्द करें</button>
-                                <button type="submit" id="uploadSubmitBtn" class="upload-submit-btn">
-                                    <i class="fas fa-cloud-upload-alt"></i> अपलोड शुरू करें
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </section>
-            
-            <section id="playerPage" class="page">
-                <h2 class="page-title"><i class="fas fa-play-circle"></i> वीडियो प्लेयर</h2>
-                <div id="videoPlayerContainer" class="video-player-container">
-                    <video id="mainVideoPlayer" class="main-video-player" controls autoplay></video>
-                    <div id="videoMeta" class="video-meta">
-                        <h1 id="playerVideoTitle" class="player-video-title">वीडियो शीर्षक</h1>
-                        <p id="playerVideoStats" class="player-video-stats">0 दृश्य • 0 सेकंड पहले</p>
-                        <div class="channel-details">
-                            <img id="playerChannelAvatar" class="channel-avatar" src="https://placehold.co/48x48/ff0000/fff?text=C" alt="चैनल">
-                            <div class="channel-info">
-                                <p id="playerChannelName" class="channel-name">चैनल का नाम</p>
-                                <p class="subscriber-count">10.5K ग्राहक</p>
-                            </div>
-                            <button class="subscribe-btn">सब्सक्राइब</button>
-                        </div>
-                        <div id="playerVideoDescription" class="video-description">विवरण...</div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="trendingPage" class="page">
-                <h2 class="page-title"><i class="fas fa-fire"></i> ट्रेंडिंग वीडियो</h2>
-                <p style="color: #888;">यह पेज अभी बनाया जा रहा है।</p>
-            </section>
-            <section id="subscriptionsPage" class="page">
-                <h2 class="page-title"><i class="fas fa-bell"></i> सब्सक्रिप्शन</h2>
-                <p style="color: #888;">यह पेज अभी बनाया जा रहा है।</p>
-            </section>
-            <section id="historyPage" class="page">
-                <h2 class="page-title"><i class="fas fa-history"></i> इतिहास</h2>
-                <p style="color: #888;">यह पेज अभी बनाया जा रहा है।</p>
-            </section>
-            <section id="watchLaterPage" class="page">
-                <h2 class="page-title"><i class="fas fa-clock"></i> बाद में देखें</h2>
-                <p style="color: #888;">यह पेज अभी बनाया जा रहा है।</p>
-            </section>
-        
-        </main>
-
-        <nav id="bottomNav" class="bottom-nav">
-            <a href="#" class="nav-item active" onclick="showPage('homePage'); return false;">
-                <i class="fas fa-home"></i>
-                <span>होम</span>
-            </a>
-            <a href="#" class="nav-item" onclick="showPage('trendingPage'); return false;">
-                <i class="fas fa-fire"></i>
-                <span>ट्रेंडिंग</span>
-            </a>
-            <button class="nav-item upload-nav-btn" onclick="showPage('uploadPage'); return false;">
-                <i class="fas fa-plus"></i>
-            </button>
-            <a href="#" class="nav-item" onclick="showPage('subscriptionsPage'); return false;">
-                <i class="fas fa-bell"></i>
-                <span>सब्सक्रिप्शन</span>
-            </a>
-            <a href="#" class="nav-item" onclick="showPage('historyPage'); return false;">
-                <i class="fas fa-user"></i>
-                <span>आप</span>
-            </a>
-        </nav>
+    <div class="topbar-right">
+      <button class="icon-btn search-open" id="searchOpen" type="button" aria-label="खोजें">
+        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+      </button>
+      <button class="icon-btn" id="installBtn" type="button" aria-label="ऐप इंस्टॉल करें" title="ऐप इंस्टॉल करें" hidden>
+        <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+      </button>
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="थीम बदलें" title="थीम बदलें">
+        <svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>
+      </button>
+      <a class="btn btn-grad upload-cta" href="#/upload">
+        <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span>अपलोड</span>
+      </a>
     </div>
+  </header>
 
-    <script type="module">
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB7LMSFYn4KkQXgH95hJJOrXIIlZ_lKQ0k",
-            authDomain: "metube-33da9.firebaseapp.com",
-            projectId: "metube-33da9",
-            storageBucket: "metube-33da9.firebasestorage.app",
-            messagingSenderId: "619272225238",
-            appId: "1:619272225238:web:e5f22447330dbb7584e477",
-            measurementId: "G-B6B7V6T08Z"
-        };
+  <div class="layout">
+    <aside class="sidebar" id="sidebar" aria-label="मुख्य मेन्यू">
+      <a class="brand side-brand" href="#/" aria-label="चित्रपट — होम">
+        <img src="icons/icon.svg" alt="" width="34" height="34">
+        <span class="brand-text">चित्रपट</span>
+      </a>
+      <nav class="side-nav">
+        <a class="nav-link" href="#/" data-route="/"><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg><span>होम</span></a>
+        <a class="nav-link" href="#/trending" data-route="/trending"><svg class="icon" aria-hidden="true"><use href="#i-trending"/></svg><span>ट्रेंडिंग</span></a>
+        <a class="nav-link" href="#/subscriptions" data-route="/subscriptions"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><span>सब्सक्रिप्शन</span></a>
+        <hr class="nav-sep">
+        <p class="nav-title">लाइब्रेरी</p>
+        <a class="nav-link" href="#/library/history" data-route="/library/history"><svg class="icon" aria-hidden="true"><use href="#i-history"/></svg><span>इतिहास</span></a>
+        <a class="nav-link" href="#/library/later" data-route="/library/later"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><span>बाद में देखें</span></a>
+        <a class="nav-link" href="#/library/liked" data-route="/library/liked"><svg class="icon" aria-hidden="true"><use href="#i-thumbs-up"/></svg><span>पसंद किए गए</span></a>
+        <hr class="nav-sep">
+        <a class="nav-link" href="#/upload" data-route="/upload"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span>वीडियो अपलोड करें</span></a>
+        <a class="nav-link" href="#/about" data-route="/about"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><span>ऐप के बारे में</span></a>
+      </nav>
+      <div class="side-footer">
+        <div class="status" id="backendStatus" data-status="connecting"><span class="dot"></span><span class="status-text">सर्वर से जुड़ रहे हैं…</span></div>
+        <p>© 2025–2026 Utkarsh Maurya</p>
+        <p>चित्रपट • भारत में बना 🇮🇳</p>
+      </div>
+    </aside>
+    <div class="backdrop" id="backdrop" hidden></div>
 
-        // Import Firebase core and Auth modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        
-        // Firestore initialization के लिए केवल getFirestore Import करें
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // Import app functions
-        import { initMetubeApp, showPage, toggleSidebar, searchVideos } from './app.js';
+    <main id="view" class="view" tabindex="-1">
+      <div class="page">
+        <div class="boot">
+          <img src="icons/icon.svg" alt="" width="72" height="72">
+          <p>चित्रपट खुल रहा है…</p>
+        </div>
+      </div>
+      <noscript>
+        <p class="noscript">इस ऐप को चलाने के लिए ब्राउज़र में JavaScript चालू करें।</p>
+      </noscript>
+    </main>
+  </div>
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        // Firestore service को DB_SERVICE के लिए सेट करें
-        const db = getFirestore(app); 
+  <nav class="bottom-nav" aria-label="नीचे का मेन्यू">
+    <a href="#/" data-route="/"><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg><span>होम</span></a>
+    <a href="#/trending" data-route="/trending"><svg class="icon" aria-hidden="true"><use href="#i-trending"/></svg><span>ट्रेंडिंग</span></a>
+    <a href="#/upload" class="bn-upload" data-route="/upload" aria-label="वीडियो अपलोड करें"><span class="bn-plus"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></span></a>
+    <a href="#/subscriptions" data-route="/subscriptions"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><span>सब्सक्रिप्शन</span></a>
+    <a href="#/library" data-route="/library"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg><span>लाइब्रेरी</span></a>
+  </nav>
 
-        // Global exports for HTML onclick events
-        window.showPage = showPage;
-        window.toggleSidebar = toggleSidebar;
-        window.searchVideos = searchVideos;
-
-        // Sign in anonymously on load
-        window.onload = async () => {
-            const loadingScreen = document.getElementById('loadingScreen');
-            const appContainer = document.getElementById('appContainer');
-            
-            try {
-                await signInAnonymously(auth);
-                console.log("Signed in anonymously");
-                
-                // initMetubeApp को db (Firestore service) पास करें
-                initMetubeApp('metube-app-id', auth, db, null); 
-                
-                // Hide loading screen
-                loadingScreen.style.display = 'none';
-                appContainer.style.display = 'grid';
-                showPage('homePage');
-                
-            } catch (error) {
-                console.error("Error during initialization:", error);
-                loadingScreen.innerHTML = `
-                    <div style="text-align: center; color: #ff4444;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                        <h2>त्रुटि: ऐप लोड नहीं हो पाया</h2>
-                        <p>${error.message}</p>
-                        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #ff0000; color: white; border: none; border-radius: 5px;">
-                            पुनः प्रयास करें
-                        </button>
-                    </div>
-                `;
-            }
-        };
-        
-        // ✅ app.js को एक अलग मॉड्यूल के रूप में लोड किया जाना चाहिए। (यह सुनिश्चित करता है कि app.js में Imports काम करते हैं)
-                // ✅ app.js को एक अलग मॉड्यूल के रूप में लोड किया जाना चाहिए। (यह सुनिश्चित करता है कि app.js में Imports काम करते हैं)
-    </script>
-    
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-B6B7V6T08Z"></script>
-        <script>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-
-          // आपकी Measurement ID: G-B6B7V6T08Z
-          gtag('config', 'G-B6B7V6T08Z');
-    </script>
-    </body>
+  <div class="offline-bar" id="offlineBar" role="status" hidden>📴 आप ऑफ़लाइन हैं — पहले खोले गए पेज दिखेंगे, नए वीडियो नहीं चलेंगे।</div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+</body>
 </html>
