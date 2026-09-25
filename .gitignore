@@ -1,0 +1,15 @@
+# सिस्टम / एडिटर की फ़ाइलें
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node / बिल्ड
+node_modules/
+npm-debug.log*
+*.log
+
+# गुप्त चीज़ें (कभी GitHub पर न डालें)
+.env
+.env.*
+.firebase/

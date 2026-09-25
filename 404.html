@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>पेज नहीं मिला • चित्रपट</title>
+  <meta name="robots" content="noindex">
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0b10; color: #f3f3f7;
+      font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', system-ui, sans-serif; text-align: center; padding: 24px; }
+    h1 { font-size: 28px; margin: 18px 0 8px; }
+    p { color: #b9b9c8; margin: 0 0 22px; }
+    a { display: inline-block; padding: 12px 22px; border-radius: 999px; color: #fff; text-decoration: none; font-weight: 700;
+      background: linear-gradient(135deg, #ffa41b 0%, #ff3d5a 52%, #c13faf 100%); }
+  </style>
+</head>
+<body>
+  <main>
+    <svg width="84" height="84" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="g" x1="80" y1="60" x2="440" y2="460" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFA41B"/><stop offset=".5" stop-color="#FF3D5A"/><stop offset="1" stop-color="#C13FAF"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#101018"/><rect x="76" y="76" width="360" height="360" rx="96" fill="none" stroke="url(#g)" stroke-width="30"/><path d="M222 190 L222 322 L336 256 Z" fill="url(#g)" stroke="url(#g)" stroke-width="40" stroke-linejoin="round"/></svg>
+    <h1>यह पेज नहीं मिला</h1>
+    <p>लगता है लिंक ग़लत है। चलिए, आपको चित्रपट के होम पेज पर ले चलते हैं।</p>
+    <a id="home" href="./">चित्रपट होम पर जाएँ</a>
+  </main>
+  <script>
+    // GitHub Pages पर साइट /Chitrapat-New/ फ़ोल्डर में है; अपने डोमेन पर हो तो सीधे "/"
+    var base = location.pathname.indexOf('/Chitrapat-New/') === 0 ? '/Chitrapat-New/' : '/';
+    document.getElementById('home').href = base;
+  </script>
+</body>
+</html>

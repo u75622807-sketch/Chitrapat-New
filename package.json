@@ -1,24 +1,18 @@
 {
-  "name": "metube-app",
-  "version": "1.0.0",
-  "description": "Metube - चाइना का वीडियो प्लेटफ़ॉर्म",
-  "main": "index.html",
-  "scripts": {
-    "start": "http-server -p 8080",
-    "build:android": "cordova build android",
-    "build:ios": "cordova build ios",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [
-    "metube",
-    "video",
-    "china",
-    "pwa",
-    "android"
-  ],
+  "name": "chitrapat",
+  "version": "2.0.0",
+  "description": "चित्रपट (Chitrapat) — भारत का अपना हल्का-फुल्का वीडियो ऐप (PWA)",
+  "private": true,
+  "license": "UNLICENSED",
   "author": "Utkarsh Maurya",
-  "license": "MIT",
-  "devDependencies": {
-    "http-server": "^14.1.1"
+  "type": "module",
+  "homepage": "https://u75622807-sketch.github.io/Chitrapat-New/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/u75622807-sketch/Chitrapat-New.git"
+  },
+  "scripts": {
+    "start": "npx --yes http-server -c-1 -p 8080 .",
+    "start:python": "python3 -m http.server 8080"
   }
 }

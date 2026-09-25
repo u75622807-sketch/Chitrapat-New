@@ -1,0 +1,60 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────
+// चित्रपट — Firestore Security Rules
+// कैसे लगाएँ: Firebase Console → Firestore Database → Rules → यह पूरा पेस्ट करें → Publish
+// ⚠️ अगर इसी Firebase प्रोजेक्ट में किसी दूसरे ऐप का डेटा भी है, तो उसके पुराने rules भी
+//    इसी फ़ाइल में (नीचे) जोड़ दें — वरना वो डेटा बंद हो जाएगा।
+// यहाँ जिस चीज़ की इजाज़त नहीं लिखी, वो अपने-आप बंद रहती है।
+// ─────────────────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // वीडियो की जानकारी (पुराना पाथ ही रखा है, ताकि पहले के अपलोड भी दिखते रहें)
+    match /artifacts/{appId}/public/data/videos/{videoId} {
+
+      // सिर्फ़ चित्रपट का फ़ोल्डर (config.js में firestoreAppId)
+      function isChitrapat() {
+        return appId == 'metube-app-id';
+      }
+
+      // 1) देखना: सबके लिए खुला (वीडियो प्लेटफ़ॉर्म पब्लिक है)
+      allow read: if isChitrapat();
+
+      // 2) नया वीडियो जोड़ना: सिर्फ़ लॉगिन यूज़र (Anonymous भी चलेगा), और डेटा सही होना चाहिए
+      allow create: if isChitrapat()
+        && request.auth != null
+        && request.resource.data.keys().hasOnly([
+             'title', 'description', 'category', 'userName', 'url', 'publicId', 'thumbnailUrl',
+             'duration', 'width', 'height', 'bytes', 'format', 'userId', 'views', 'likes', 'timestamp'])
+        && request.resource.data.keys().hasAll(['title', 'url', 'userId', 'views', 'likes', 'timestamp'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 100
+        && (!('description' in request.resource.data)
+            || (request.resource.data.description is string && request.resource.data.description.size() <= 2000))
+        && (!('userName' in request.resource.data)
+            || (request.resource.data.userName is string && request.resource.data.userName.size() <= 40))
+        && request.resource.data.url is string
+        && request.resource.data.url.matches('https://res[.]cloudinary[.]com/dw1ksfmm7/video/upload/.+')
+        && request.resource.data.views == 0
+        && request.resource.data.likes == 0
+        && request.resource.data.timestamp == request.time;
+
+      // 3) बदलाव: कोई भी लॉगिन यूज़र सिर्फ़ views को +1, या likes को +1/-1 कर सकता है — और कुछ नहीं
+      allow update: if isChitrapat() && request.auth != null && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+          && request.resource.data.views == resource.data.get('views', 0) + 1)
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+          && request.resource.data.likes >= 0
+          && (request.resource.data.likes == resource.data.get('likes', 0) + 1
+              || request.resource.data.likes == resource.data.get('likes', 0) - 1))
+      );
+
+      // 4) हटाना: सिर्फ़ वही यूज़र जिसने वीडियो अपलोड किया था
+      allow delete: if isChitrapat() && request.auth != null && resource.data.userId == request.auth.uid;
+    }
+  }
+}

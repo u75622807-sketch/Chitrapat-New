@@ -1,481 +1,246 @@
-// app.js - Chitrapat एप्लिकेशन का मुख्य लॉजिक (Cloudinary XHR Upload और लाइव प्रगति के साथ)
+// app.js — चित्रपट ऐप की शुरुआत: राउटर (पेज बदलना), हेडर/साइडबार, थीम, सर्च, ऑफ़लाइन, PWA
+//
+// पेज बदलने के लिए "hash" URL इस्तेमाल होते हैं, जैसे:
+//   #/                  होम          #/trending        ट्रेंडिंग
+//   #/watch/<id>        वीडियो       #/upload          अपलोड
+//   #/search?q=...      खोज          #/library/history लाइब्रेरी
+// इनका फ़ायदा: GitHub Pages पर बिना किसी सर्वर सेटिंग के हर लिंक शेयर किया जा सकता है।
+import { CONFIG } from './config.js';
+import { $, $$, debounce, isTyping } from './js/utils.js';
+import { state, subscribe } from './js/store.js';
+import { connectBackend, isLive } from './js/backend.js';
+import { toast } from './js/ui.js';
+import { initPwa, onInstallChange, promptInstall } from './js/pwa.js';
+import * as pages from './js/pages.js';
 
-// =============================================================
-// 0. 🔥 आवश्यक Firebase Imports 
-// =============================================================
+const ROUTES = [
+  ['/', pages.homePage],
+  ['/trending', pages.trendingPage],
+  ['/subscriptions', pages.subscriptionsPage],
+  ['/library', pages.libraryPage],
+  ['/library/:tab', pages.libraryPage],
+  ['/upload', pages.uploadPage],
+  ['/watch/:id', pages.watchPage],
+  ['/search', pages.searchPage],
+  ['/channel/:name', pages.channelPage],
+  ['/about', pages.aboutPage],
+];
 
-import { 
-    collection, 
-    query, 
-    onSnapshot, 
-    addDoc, 
-    doc, 
-    updateDoc, 
-    increment 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+const view = $('#view');
+let current = null;
 
-// =============================================================
-// 1. ग्लोबल वैरिएबल्स और स्टेट
-// =============================================================
-
-let METUBE_APP_ID;
-let AUTH_SERVICE;
-let DB_SERVICE;
-let currentUser = null; 
-let currentFile = null;
-
-const VIDEOS_COLLECTION = 'videos';
-
-// ✅ Cloudinary Configuration
-// Cloud Name का उपयोग अनसाइंड अपलोड के लिए किया जाता है।
-const CLOUDINARY_CLOUD_NAME = 'dw1ksfmm7';
-// Cloudinary में बनाए गए Unsigned Preset का नाम:
-const CLOUDINARY_UPLOAD_PRESET = 'metube_final_video'; 
-
-
-// UI Elements
-const videosGrid = document.getElementById('videosGrid');
-const loadingVideos = document.querySelector('.loading-videos');
-
-// Upload UI Elements
-const uploadForm = document.getElementById('uploadForm');
-const fileInput = document.getElementById('fileInput');
-const fileNameDisplay = document.getElementById('fileNameDisplay');
-const uploadDetails = document.getElementById('uploadDetails');
-const progressFill = document.getElementById('progressFill');
-const progressText = document.getElementById('progressText');
-const uploadSpeed = document.getElementById('uploadSpeed');
-
-// Player UI Elements
-const mainVideoPlayer = document.getElementById('mainVideoPlayer');
-const playerVideoTitle = document.getElementById('playerVideoTitle');
-const playerVideoStats = document.getElementById('playerVideoStats');
-const playerChannelName = document.getElementById('playerChannelName');
-const playerVideoDescription = document.getElementById('playerVideoDescription');
-
-// =============================================================
-// 2. यूटिलिटी फ़ंक्शंस
-// =============================================================
-
-function formatTimeSince(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) { return Math.floor(interval) + " साल पहले"; }
-    interval = seconds / 2592000;
-    if (interval > 1) { return Math.floor(interval) + " महीने पहले"; }
-    interval = seconds / 86400;
-    if (interval > 1) { return Math.floor(interval) + " दिन पहले"; }
-    interval = seconds / 3600;
-    if (interval > 1) { return Math.floor(interval) + " घंटे पहले"; }
-    interval = seconds / 60;
-    if (interval > 1) { return Math.floor(interval) + " मिनट पहले"; }
-    return Math.floor(seconds) + " सेकंड पहले";
+function parseHash() {
+  const raw = location.hash.replace(/^#/, '') || '/';
+  const [pathPart, qs = ''] = raw.split('?');
+  const path = `/${pathPart.replace(/^\/+|\/+$/g, '')}`;
+  return { path, query: new URLSearchParams(qs) };
 }
 
-function formatNumber(num) {
-    if (num >= 1000000) { return (num / 1000000).toFixed(1) + 'M'; }
-    if (num >= 1000) { return (num / 1000).toFixed(0) + 'K'; }
-    return num;
-}
-
-// =============================================================
-// 3. UI/नेविगेशन फ़ंक्शंस
-// =============================================================
-
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('active');
-}
-
-function showPage(pageId) {
-    document.querySelectorAll('.page').forEach(page => {
-        page.style.display = 'none';
-        page.classList.remove('active');
+function matchRoute(path) {
+  const parts = path.split('/').filter(Boolean);
+  for (const [pattern, page] of ROUTES) {
+    const pp = pattern.split('/').filter(Boolean);
+    if (pp.length !== parts.length) continue;
+    const params = {};
+    const ok = pp.every((seg, i) => {
+      if (seg.startsWith(':')) {
+        try { params[seg.slice(1)] = decodeURIComponent(parts[i]); } catch { params[seg.slice(1)] = parts[i]; }
+        return true;
+      }
+      return seg === parts[i];
     });
-
-    const activePage = document.getElementById(pageId);
-    if (activePage) {
-        activePage.style.display = 'block';
-        activePage.classList.add('active');
-    }
-    
-    document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    if (pageId === 'homePage') {
-        document.querySelector('.bottom-nav .nav-item:first-child').classList.add('active');
-    }
+    if (ok) return { page, params };
+  }
+  return { page: pages.notFoundPage, params: {} };
 }
 
-// =============================================================
-// 4. Firebase Auth
-// =============================================================
+function render() {
+  const { path, query } = parseHash();
+  const { page, params } = matchRoute(path);
+  try { current?.destroy?.(); } catch (err) { console.error(err); }
 
-function setupAuthListener(auth) {
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            currentUser = user;
-            console.log("User is signed in:", currentUser.uid);
-            document.getElementById('loginBtn').style.display = 'none';
-            document.getElementById('loggedUser').style.display = 'flex';
-            document.getElementById('userAvatar').src = `https://placehold.co/36x36/888/fff?text=${user.email?.charAt(0).toUpperCase() || 'U'}`;
-        } else {
-            currentUser = null;
-            console.log("User is signed out.");
-            document.getElementById('loginBtn').style.display = 'flex';
-            document.getElementById('loggedUser').style.display = 'none';
-            
-            document.getElementById('loginBtn').onclick = async () => {
-                try {
-                    await auth.signInAnonymously();
-                } catch (error) {
-                    console.error("Anonymous login failed:", error);
-                }
-            };
-        }
-    });
+  let result;
+  try {
+    result = page({ params, query, path });
+  } catch (err) {
+    console.error('[चित्रपट] पेज बनाने में त्रुटि:', err);
+    result = pages.errorPage(err);
+  }
+  current = result;
+  view.replaceChildren(result.node);
+
+  if (result.title !== undefined) {
+    document.title = result.title ? `${result.title} • ${CONFIG.appName}` : `${CONFIG.appName} — भारत का अपना वीडियो ऐप`;
+  }
+  setActiveNav(path);
+  closeDrawer();
+  closeMobileSearch();
+  if (path !== '/search') $('#searchInput').value = '';
+  window.scrollTo(0, 0);
+  trackPageView();
 }
 
-// =============================================================
-// 5. Firestore Data Handling
-// =============================================================
-
-function createVideoCard(video) {
-    const card = document.createElement('div');
-    card.className = 'video-card';
-    card.onclick = () => playVideo(video.id, video);
-    
-    const uploadDate = video.timestamp?.toDate ? video.timestamp.toDate() : new Date(video.timestamp || Date.now());
-    
-    card.innerHTML = `
-        <div class="thumbnail-container">
-       <img src="${video.url.replace('/video/upload/', '/image/upload/').replace(/\.mp4|\.webm/i, '.jpg')}" alt="${video.title}" class="thumbnail"> 
-            <span class="video-duration">${video.duration || '10:45'}</span>
-        </div>
-        <div class="video-details">
-            <img src="https://placehold.co/36x36/ff0000/fff?text=C" alt="चैनल" class="channel-avatar">
-            <div class="details-text">
-                <h3 class="video-title-card">${video.title}</h3>
-                <p class="channel-name">${video.userName || `User: ${video.userId?.substring(0, 8)}...`}</p>
-                <p class="video-stats">${formatNumber(video.views || 0)} दृश्य • ${formatTimeSince(uploadDate)}</p>
-            </div>
-        </div>
-    `;
-    return card;
+function setActiveNav(path) {
+  const active = path === '/library' ? '/library/history' : path;
+  $$('[data-route]').forEach((a) => {
+    const r = a.dataset.route;
+    const on = r === '/' ? active === '/' : active === r || active.startsWith(`${r}/`);
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
 }
 
-function loadVideos(db, appId) {
-    if (!db || !appId) {
-        console.error("Firestore not initialized");
-        return;
-    }
-
-    videosGrid.innerHTML = '';
-    if (loadingVideos) loadingVideos.style.display = 'block';
-
-    try {
-        const videosRef = collection(db, 'artifacts', appId, 'public', 'data', VIDEOS_COLLECTION);
-        const q = query(videosRef);
-        
-        onSnapshot(q, (snapshot) => {
-            const videoList = [];
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                videoList.push({ 
-                    id: doc.id, 
-                    views: data.views || 0,
-                    title: data.title || 'Untitled',
-                    description: data.description || '',
-                    url: data.url || '',
-                    thumbnailUrl: data.thumbnailUrl || '',
-                    userId: data.userId || 'anonymous',
-                    timestamp: data.timestamp || new Date(),
-                    ...data 
-                });
-            });
-
-            videoList.sort((a, b) => {
-                const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-                const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-                return dateB - dateA;
-            });
-
-            videosGrid.innerHTML = '';
-            if (videoList.length === 0) {
-                videosGrid.innerHTML = '<p class="no-videos">कोई वीडियो उपलब्ध नहीं है। अपलोड करने वाले पहले व्यक्ति बनें!</p>';
-            } else {
-                videoList.forEach(video => {
-                    videosGrid.appendChild(createVideoCard(video));
-                });
-            }
-            if (loadingVideos) loadingVideos.style.display = 'none';
-        }, (error) => {
-            console.error("Firestore onSnapshot failed:", error);
-            if (loadingVideos) loadingVideos.textContent = 'वीडियो लोड करने में त्रुटि आई।';
-        });
-    } catch (error) {
-        console.error("Error setting up Firestore listener:", error);
-    }
+// ─── साइडबार (मोबाइल पर दराज़ / drawer) ─────────────────────────
+const wide = matchMedia('(min-width: 1100px)');
+function openDrawer() {
+  document.body.classList.add('drawer-open');
+  $('#backdrop').hidden = false;
+  $('#menuBtn').setAttribute('aria-expanded', 'true');
+}
+function closeDrawer() {
+  document.body.classList.remove('drawer-open');
+  $('#backdrop').hidden = true;
+  $('#menuBtn').setAttribute('aria-expanded', 'false');
+}
+function toggleMenu() {
+  if (wide.matches) {
+    document.body.classList.toggle('sidebar-collapsed');
+  } else if (document.body.classList.contains('drawer-open')) {
+    closeDrawer();
+  } else {
+    openDrawer();
+  }
 }
 
-// =============================================================
-// 6. VIDEO UPLOAD लॉजिक (XHR के साथ लाइव प्रगति दिखाने के लिए बदला गया)
-// =============================================================
-
-/**
- * क्लाइंट-साइड पर Cloudinary Unsigned Upload करता है और प्रगति अपडेट करता है।
- * @param {File} file अपलोड करने के लिए फ़ाइल
- * @returns {Promise<string>} डाउनलोड URL
- */
-async function uploadVideoToCloudinary(file) {
-    return new Promise((resolve, reject) => {
-        const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET); 
-
-        const xhr = new XMLHttpRequest();
-        const startTime = Date.now();
-
-        // 1. प्रगति हैंडलर: अपलोड होते समय बार-बार UI को अपडेट करता है
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded * 100) / e.total);
-                
-                // अपलोड प्रगति को 0% से 70% तक दिखाएँ (बाकी 30% Firestore के लिए)
-                progressFill.style.width = `${percent * 0.7}%`;
-                progressText.textContent = `अपलोड हो रहा है: ${percent}%`;
-                
-                // अपलोड स्पीड का अनुमान दिखाएँ
-                const uploadTime = (Date.now() - startTime) / 1000;
-                const speed = (e.loaded / 1024 / uploadTime).toFixed(1);
-                uploadSpeed.textContent = `गति: ${speed} KB/s`;
-            }
-        });
-
-        // 2. त्रुटि हैंडलर
-        xhr.addEventListener('error', () => {
-            reject(new Error("नेटवर्क त्रुटि या टाइमआउट के कारण अपलोड विफल।"));
-        });
-        
-        // 3. पूर्णता हैंडलर
-        xhr.addEventListener('load', () => {
-            if (xhr.status === 200) {
-                const data = JSON.parse(xhr.responseText);
-                resolve(data.secure_url);
-            } else {
-                let errorMessage = xhr.statusText;
-                try {
-                    const errorData = JSON.parse(xhr.responseText);
-                    errorMessage = errorData.error ? errorData.error.message : xhr.statusText;
-                } catch (e) { /* ignore */ }
-                
-                reject(new Error(`Cloudinary अपलोड विफल: ${xhr.status} - ${errorMessage}`));
-            }
-        });
-        
-        // 4. अनुरोध भेजें
-        xhr.open('POST', url);
-        xhr.send(formData);
-        
-        // UI को अपलोड शुरू होने का संकेत दें
-        progressFill.style.width = '5%';
-        progressText.textContent = 'अपलोड शुरू हो रहा है...';
-
-    });
+// ─── सर्च ────────────────────────────────────────────────────────
+function openMobileSearch() {
+  document.body.classList.add('search-open');
+  $('#searchInput').focus();
+}
+function closeMobileSearch() {
+  document.body.classList.remove('search-open');
+}
+function goSearch(q, replace = false) {
+  const hash = q ? `#/search?q=${encodeURIComponent(q)}` : '#/search';
+  if (replace) {
+    history.replaceState(null, '', hash);
+    render();
+  } else {
+    location.hash = hash;
+  }
 }
 
-
-function handleFileInputChange(e) {
-    const file = e.target.files[0];
-    if (file) {
-        currentFile = file;
-        fileNameDisplay.textContent = `चुनी गई फ़ाइल: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-        uploadDetails.style.display = 'block';
-        progressFill.style.width = '0%';
-        progressText.textContent = 'प्रगति: फ़ाइल तैयार है';
-        uploadSpeed.textContent = '';
-    } else {
-        currentFile = null;
-        fileNameDisplay.textContent = 'कोई फ़ाइल नहीं चुनी गई।';
-        uploadDetails.style.display = 'none';
-    }
+// ─── थीम (डार्क / लाइट) ──────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem('cp_theme', theme); } catch { /* ignore */ }
+  $('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f6f6fa' : '#0b0b10');
+  $('#themeBtn use')?.setAttribute('href', theme === 'light' ? '#i-moon' : '#i-sun');
+  $('#themeBtn')?.setAttribute('aria-label', theme === 'light' ? 'डार्क थीम चालू करें' : 'लाइट थीम चालू करें');
 }
 
+// ─── सर्वर स्टेटस (साइडबार में छोटा बिंदु) ───────────────────────
+function paintStatus() {
+  const el = $('#backendStatus');
+  if (!el) return;
+  const { status, message } = state.backend;
+  el.dataset.status = status;
+  $('.status-text', el).textContent = status === 'connecting'
+    ? 'सर्वर से जुड़ रहे हैं…'
+    : status === 'live' ? message : `डेमो मोड • ${message || 'सर्वर से कनेक्शन नहीं'}`;
+  el.title = message;
+}
 
-async function uploadVideo(e, db, storage, appId) { 
+function paintOnline() {
+  $('#offlineBar').hidden = navigator.onLine;
+}
+
+// ─── Google Analytics (सिर्फ़ असली साइट पर) ───────────────────────
+function loadAnalytics() {
+  const id = CONFIG.analyticsId;
+  if (!id || ['localhost', '127.0.0.1'].includes(location.hostname)) return;
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function gtag() { window.dataLayer.push(arguments); }; // eslint-disable-line prefer-rest-params
+  window.gtag('js', new Date());
+  window.gtag('config', id, { send_page_view: false });
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+  document.head.append(s);
+}
+function trackPageView() {
+  window.gtag?.('event', 'page_view', { page_title: document.title, page_location: location.href });
+}
+
+// ─── पुराने लिंक (?source=trending / ?source=upload) को नए पेज पर भेजें ──
+function handleLegacyLinks() {
+  const source = new URLSearchParams(location.search).get('source');
+  if (!location.hash && (source === 'trending' || source === 'upload')) {
+    history.replaceState(null, '', `${location.pathname}#/${source}`);
+  }
+}
+
+function bindUI() {
+  $('#menuBtn').addEventListener('click', toggleMenu);
+  $('#backdrop').addEventListener('click', closeDrawer);
+  wide.addEventListener?.('change', closeDrawer);
+
+  $('#themeBtn').addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+  });
+
+  $('#searchForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    
-    if (!currentFile) {
-        alert('कृपया अपलोड करने के लिए एक वीडियो फ़ाइल चुनें!');
-        return;
+    const q = $('#searchInput').value.trim();
+    goSearch(q);
+    $('#searchInput').blur();
+  });
+  $('#searchInput').addEventListener('input', debounce(() => {
+    // सर्च पेज पर हों तो टाइप करते-करते नतीजे बदलें
+    if (parseHash().path === '/search') goSearch($('#searchInput').value.trim(), true);
+  }, 350));
+  $('#searchOpen').addEventListener('click', openMobileSearch);
+  $('#searchBack').addEventListener('click', closeMobileSearch);
+
+  onInstallChange((can) => { $('#installBtn').hidden = !can; });
+  $('#installBtn').addEventListener('click', () => promptInstall());
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeDrawer();
+      closeMobileSearch();
+    } else if (e.key === '/' && !isTyping(e.target) && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      if (getComputedStyle($('#searchOpen')).display !== 'none') openMobileSearch();
+      else $('#searchInput').focus();
     }
-    // Cloudinary प्रीसेट चेक अब अनावश्यक है क्योंकि हमने इसे 'metube_live' में सेट कर दिया है।
-    
-    const title = document.getElementById('title').value;
-    const description = document.getElementById('description').value;
-    const category = document.getElementById('category').value;
-    
-    const userId = currentUser ? currentUser.uid : 'anonymous';
-    const userName = currentUser?.email || 'Anonymous User';
-    
-    let downloadURL = null;
+  });
 
-    // ----------------------------------------------------
-    // 1. Cloudinary पर असली अपलोड शुरू करें
-    // ----------------------------------------------------
-    try {
-        progressText.textContent = 'Cloudinary पर अपलोड हो रहा है...';
-        // progressFill.style.width = '10%'; <--- XHR प्रगति को अपडेट करेगा
-        uploadSpeed.textContent = 'नेटवर्क अनुरोध शुरू...';
-
-        // ⚠️ यहाँ असली XHR अपलोड लॉजिक है!
-        downloadURL = await uploadVideoToCloudinary(currentFile); 
-        
-        progressText.textContent = 'अपलोड पूरा!';
-        progressFill.style.width = '70%'; // अपलोड पूरा होने पर 70% दिखाएँ
-        uploadSpeed.textContent = 'URL प्राप्त: ' + downloadURL.substring(0, 30) + '...';
-
-    } catch (uploadError) {
-        console.error("Cloudinary Upload failed:", uploadError);
-        progressText.textContent = 'अपलोड विफल: ' + uploadError.message;
-        progressFill.style.width = '0%';
-        uploadSpeed.textContent = '';
-        return; 
-    }
-
-    // ----------------------------------------------------
-    // 2. Firestore में metadata सहेजें
-    // ----------------------------------------------------
-    try {
-        progressText.textContent = 'डेटाबेस में मेटाडेटा सहेजा जा रहा है...';
-        progressFill.style.width = '90%';
-        
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', VIDEOS_COLLECTION), {
-            userId: userId,
-            userName: userName,
-            title: title,
-            description: description,
-            category: category,
-            url: downloadURL, // ✅ Cloudinary से प्राप्त असली URL
-            thumbnailUrl: downloadURL.replace('/upload/', '/upload/w_480,h_270,c_fill,g_auto/'), // Cloudinary Thumbnail URL बनाना आसान है
-            views: 0,
-            likes: 0,
-            timestamp: new Date()
-        });
-
-        console.log('वीडियो सफलतापूर्वक अपलोड और प्रकाशित हो गया!');
-        
-        // UI रीसेट करें
-        uploadForm.reset();
-        currentFile = null;
-        progressFill.style.width = '100%';
-        progressText.textContent = 'अपलोड और सेव सफल!';
-        uploadSpeed.textContent = '';
-        
-        fileNameDisplay.textContent = 'कोई फ़ाइल नहीं चुनी गई।';
-        uploadDetails.style.display = 'none';
-
-        setTimeout(() => {
-            showPage('homePage');
-            loadVideos(db, appId);
-        }, 2000);
-        
-    } catch (firestoreError) {
-        console.error("Failed to save metadata to Firestore:", firestoreError);
-        progressText.textContent = 'अपलोड सफल, पर डेटाबेस त्रुटि: ' + firestoreError.message;
-        progressFill.style.width = '70%';
-    }
+  window.addEventListener('online', () => {
+    paintOnline();
+    toast('आप फिर से ऑनलाइन हैं ✅', { type: 'success' });
+    if (!isLive()) connectBackend();
+  });
+  window.addEventListener('offline', () => {
+    paintOnline();
+    toast('इंटरनेट बंद है — ऐप ऑफ़लाइन मोड में है', { type: 'error' });
+  });
 }
 
+// ─── शुरुआत ──────────────────────────────────────────────────────
+subscribe((type) => {
+  if (type === 'backend') paintStatus();
+  try { current?.onData?.(type); } catch (err) { console.error('[चित्रपट] अपडेट त्रुटि:', err); }
+});
 
-// =============================================================
-// 7. VIDEO PLAYER लॉजिक
-// =============================================================
-
-async function playVideo(videoId, videoData) {
-    if (!DB_SERVICE || !METUBE_APP_ID) return;
-
-    try {
-        const videoDocRef = doc(DB_SERVICE, 'artifacts', METUBE_APP_ID, 'public', 'data', VIDEOS_COLLECTION, videoId);
-        await updateDoc(videoDocRef, {
-            views: increment(1)
-        });
-        videoData.views = (videoData.views || 0) + 1;
-    } catch (e) {
-        console.error("Error updating view count:", e);
-    }
-    
-    mainVideoPlayer.src = videoData.url;
-    playerVideoTitle.textContent = videoData.title;
-    playerVideoDescription.textContent = videoData.description;
-    
-    const uploadDate = videoData.timestamp?.toDate ? videoData.timestamp.toDate() : new Date(videoData.timestamp);
-    playerVideoStats.textContent = `${formatNumber(videoData.views || 0)} दृश्य • ${formatTimeSince(uploadDate)}`;
-    playerChannelName.textContent = videoData.userName || `User: ${videoData.userId?.substring(0, 10)}...`;
-
-    showPage('playerPage');
-    
-    setTimeout(() => {
-        mainVideoPlayer.play().catch(e => console.log("Auto-play blocked:", e));
-    }, 500);
-}
-
-function searchVideos() {
-    const query = document.getElementById('searchInput').value;
-    console.log(`Searching for: ${query}`);
-    showPage('homePage');
-}
-
-// =============================================================
-// 8. Initialization
-// =============================================================
-
-function initMetubeApp(appId, auth, db, storage) { 
-    METUBE_APP_ID = appId;
-    AUTH_SERVICE = auth;
-    DB_SERVICE = db;
-
-    setupAuthListener(auth);
-    loadVideos(db, appId);
-    
-    document.getElementById('selectFileBtn').addEventListener('click', () => {
-        fileInput.click();
-    });
-
-    fileInput.addEventListener('change', handleFileInputChange);
-
-    if (uploadForm) {
-        uploadForm.addEventListener('submit', (e) => uploadVideo(e, db, null, appId));
-    }
-
-    const uploadArea = document.getElementById('uploadArea');
-    if (uploadArea) {
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('drag-over');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('drag-over');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('drag-over');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                handleFileInputChange({ target: fileInput });
-            }
-        });
-    }
-
-    window.playVideo = playVideo;
-    window.showPage = showPage;
-    window.toggleSidebar = toggleSidebar;
-    window.searchVideos = searchVideos;
-}
-
-export { initMetubeApp, showPage, toggleSidebar, searchVideos };
+applyTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+bindUI();
+paintStatus();
+paintOnline();
+handleLegacyLinks();
+window.addEventListener('hashchange', render);
+render();
+document.body.classList.add('ready');
+initPwa();
+connectBackend();
+loadAnalytics();

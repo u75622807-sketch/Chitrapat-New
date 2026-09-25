@@ -1,67 +1,26 @@
 {
-  "name": "Chitrapat",
-  "short_name": "Chitrapat",
-  "description": "अपना वीडियो प्लेटफ़ॉर्म",
-  "start_url": "/",
+  "id": "./",
+  "name": "चित्रपट — भारत का अपना वीडियो ऐप",
+  "short_name": "चित्रपट",
+  "description": "वीडियो देखें, अपलोड करें और शेयर करें — हल्का-फुल्का हिंदी वीडियो ऐप।",
+  "lang": "hi",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0f0f0f",
-  "theme_color": "#ff0000",
-  "orientation": "portrait",
+  "orientation": "any",
+  "background_color": "#0b0b10",
+  "theme_color": "#0b0b10",
+  "categories": ["entertainment", "video", "social"],
   "icons": [
-    {
-      "src": "icons/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-384x384.png",
-      "sizes": "384x384",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
-  "categories": ["entertainment", "social", "video"],
   "shortcuts": [
-    {
-      "name": "ट्रेंडिंग वीडियो",
-      "short_name": "ट्रेंडिंग",
-      "description": "चाइना में ट्रेंडिंग वीडियो देखें",
-      "url": "/?source=trending"
-    },
-    {
-      "name": "वीडियो अपलोड",
-      "short_name": "अपलोड",
-      "description": "नया वीडियो अपलोड करें",
-      "url": "/?source=upload"
-    }
+    { "name": "ट्रेंडिंग वीडियो", "short_name": "ट्रेंडिंग", "url": "./#/trending", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "वीडियो अपलोड करें", "short_name": "अपलोड", "url": "./#/upload", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "मेरी लाइब्रेरी", "short_name": "लाइब्रेरी", "url": "./#/library", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }
